@@ -8,7 +8,7 @@
 
 typedef struct
 {
-    uint8_t wiring[2 * MAX_PLUGS];
+    uint8_t wiring[26];
 } Plugboard;
 
 void pb_addPlug(Plugboard *plugboard, char a, char b);

@@ -7,13 +7,11 @@
 #include "Machine/machine.h"
 #include "config.h"
 
-#define LENGTH 4032450
-
 int main(void)
 {
-    double elapsedTime;
+    double elapsedTime = 0;
 
-    // Create a machine with rotors and a reflector
+    // Create a machine rotors, reflector, ring
     Machine machine;
     initMachine(&machine, (int[3]){1, 2, 3}, 'B', (int[3]){0, 0, 0});
 
@@ -23,34 +21,29 @@ int main(void)
     addPlug(&machine, 'C', 'D');
     addPlug(&machine, 'E', 'F');
 
-    FILE *file = fopen("bible.txt", "r");
-    char *input = malloc(LENGTH);
-    fgets(input, LENGTH, file);
+    FILE *file = fopen("../data/bible.txt", "r");
+    char *input = malloc(4032450);
+    fgets(input, 4032450, file);
     fclose(file);
     LETTER *letteredInput = convertStringToLetters(input, strlen(input));
-    free(input);
 
-    // printf("Input: %s\n", "Hello World");
-    // printf("Output: %s\n", procString(&machine, "Hello World"));
+    printf("Input: %s\n", "Hello World");
+    printf("Output: %s\n", procString(&machine, "Hello World"));
     // printf("Compression ratio: %zu/%zu bytes\n", sizeof(CompressedMachine), sizeof(Machine));
 
     struct timespec startTime, endTime;
-    LETTER *output = malloc(LENGTH * sizeof(LETTER));
+    LETTER *output = malloc(strlen(input) * sizeof(LETTER));
     for (int i = 0; i < 100; i++)
     {
+        clock_gettime(CLOCK_THREAD_CPUTIME_ID, &startTime);
+        procLetters(&machine, letteredInput, output, strlen(input));
+        clock_gettime(CLOCK_THREAD_CPUTIME_ID, &endTime);
 
-        clock_gettime(CLOCK_MONOTONIC, &startTime);
-        procLetters(&machine, letteredInput, output, LENGTH);
-        clock_gettime(CLOCK_MONOTONIC, &endTime);
-
-        elapsedTime += ((double)(endTime.tv_nsec - startTime.tv_nsec) / 1e9);
+        elapsedTime += (double)(endTime.tv_sec - startTime.tv_sec) + ((double)(endTime.tv_nsec - startTime.tv_nsec) / 1e9);
     }
     free(output);
     free(letteredInput);
-
-    // Print the output
-    // printf("Input: %s\n", input);
-    // printf("Output: %s\n", output);
+    free(input);
 
     // Calculate the average elapsed time
     double averageElapsed = elapsedTime / 100.0;

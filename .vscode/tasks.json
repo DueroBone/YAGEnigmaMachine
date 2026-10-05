@@ -10,10 +10,10 @@
                 "-Wall",
                 "-Wextra",
                 "-Wpedantic",
-                // "-O3",
+                "-O3",
                 "-g",
-                "${workspaceFolder}/*.c",
-                "${workspaceFolder}/**/*.c",
+                "${workspaceFolder}/src/*.c",
+                "${workspaceFolder}/src/**/*.c",
                 "-o",
                 "${workspaceFolder}/main"
             ],

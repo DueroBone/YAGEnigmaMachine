@@ -16,7 +16,7 @@ typedef struct
 {
     uint64_t rotorPositions; // 26*26*26 * 26*26*26    // Rotor positions and ring settings
     uint8_t rotorNumbers;    // 5*5*5 * 2              // Rotor numbers, reflector
-    uint8_t plugboardWiring[2 * MAX_PLUGS];
+    uint8_t plugboardWiring[26];
 } CompressedMachine;
 
 /** Ring settings start at 1=a */

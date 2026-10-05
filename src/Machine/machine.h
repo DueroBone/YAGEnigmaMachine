@@ -26,7 +26,7 @@ void setRotorPositions(Machine *machine, uint8_t posA, uint8_t posB, uint8_t pos
 void addPlug(Machine *machine, char a, char b);
 void removePlug(Machine *machine, char a);
 
-LETTER *convertStringToLetters(const char *input, size_t length);
+LETTER *convertStringToLetters(const char *input);
 char *convertLettersToString(const LETTER *letters, size_t length);
 
 char *procString(Machine *machine, const char *strInput);

@@ -10,12 +10,14 @@
                 "-Wall",
                 "-Wextra",
                 "-Wpedantic",
-                "-O3",
+                "-O1",
                 "-g",
+                // "-fsanitize=address,undefined",
+                // "-fno-omit-frame-pointer",
                 "${workspaceFolder}/src/*.c",
                 "${workspaceFolder}/src/**/*.c",
                 "-o",
-                "${workspaceFolder}/main"
+                "${workspaceFolder}/enigma"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"

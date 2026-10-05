@@ -1,8 +1,8 @@
+#include <string.h>
+#include "../config.h"
 #include "machine.h"
 #include "rotor.h"
 #include "plugboard.h"
-#include "../config.h"
-#include <string.h>
 
 void initMachine(Machine *machine, int rotorNumbers[3], int reflectorNumber, int ringSettings[3])
 {
@@ -91,9 +91,10 @@ void removePlug(Machine *machine, char a)
     pb_removePlug(&machine->plugboard, a);
 }
 
-LETTER *convertStringToLetters(const char *input, size_t length)
+LETTER *convertStringToLetters(const char *input)
 {
-    LETTER *letters = malloc(length * sizeof(LETTER));
+    size_t length = strlen(input);
+    LETTER *letters = malloc(strlen(input) * sizeof(LETTER));
     if (letters == NULL)
         return NULL;
 
@@ -171,7 +172,7 @@ LETTER *procLetters(Machine *machine, const LETTER *input, LETTER *output, size_
 char *procString(Machine *machine, const char *strInput)
 {
     size_t length = strlen(strInput);
-    LETTER *letters = convertStringToLetters(strInput, length);
+    LETTER *letters = convertStringToLetters(strInput);
     if (letters == NULL)
         return NULL;
 

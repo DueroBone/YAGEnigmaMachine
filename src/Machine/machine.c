@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdio.h>
 #include "../config.h"
 #include "machine.h"
 #include "rotor.h"
@@ -132,6 +133,10 @@ char *convertLettersToString(const LETTER *letters, size_t length)
         {
             output[i] += 'A';
         }
+        else if (output[i] != ' ')
+        {
+            output[i] = '?'; // Unknown character
+        }
 #endif
     }
     output[length] = '\0';
@@ -190,7 +195,7 @@ char *procString(Machine *machine, const char *strInput)
     free(letters);
     return strOutput;
 }
-
+#ifdef DUMB_COMPRESSOR
 CompressedMachine *compressMachine(Machine *machine)
 {
     CompressedMachine *compressed = malloc(sizeof(CompressedMachine));
@@ -277,4 +282,63 @@ Machine *decompressMachine(CompressedMachine *compressed)
     }
 
     return machine;
+}
+#else
+CompressedMachine *compressMachine(Machine *machine)
+{
+    CompressedMachine *compressed = malloc(sizeof(CompressedMachine));
+    if (compressed == NULL)
+        return NULL;
+
+    for (int i = 0; i < 3; i++)
+    {
+        compressed->rotorPositions[i] = machine->rotors[i].position;
+        compressed->ringSettings[i] = machine->rotors[i].ring;
+        compressed->rotorNumbers[i] = machine->rotors[i].rotorNumber;
+    }
+    compressed->reflectorNumber = machine->reflector.rotorNumber;
+
+    for (int i = 0; i < 26; i++)
+    {
+        compressed->plugboardWiring[i] = machine->plugboard.wiring[i];
+    }
+
+    return compressed;
+}
+
+Machine *decompressMachine(CompressedMachine *compressed)
+{
+    Machine *machine = malloc(sizeof(Machine));
+    if (machine == NULL)
+        return NULL;
+
+    for (int i = 0; i < 3; i++)
+    {
+        machine->rotors[i] = createRotor(compressed->rotorNumbers[i], compressed->ringSettings[i]);
+        setPosition(&machine->rotors[i], compressed->rotorPositions[i]);
+    }
+    machine->reflector = createRotor(compressed->reflectorNumber, 0);
+
+    for (int i = 0; i < 26; i++)
+    {
+        machine->plugboard.wiring[i] = compressed->plugboardWiring[i];
+    }
+
+    return machine;
+}
+#endif
+
+char *machineToString(Machine *machine)
+{
+    char *output = malloc(100); // Allocate enough space for the output string
+    if (output == NULL)
+        return NULL;
+
+    snprintf(output, 100, "Rotors: %d %d %d, Reflector: %c, Ring Settings: %2d %2d %2d, Rotor Positions: %2d %2d %2d",
+             machine->rotors[0].rotorNumber, machine->rotors[1].rotorNumber, machine->rotors[2].rotorNumber,
+             machine->reflector.rotorNumber,
+             machine->rotors[0].ring, machine->rotors[1].ring, machine->rotors[2].ring,
+             machine->rotors[0].position, machine->rotors[1].position, machine->rotors[2].position);
+
+    return output;
 }

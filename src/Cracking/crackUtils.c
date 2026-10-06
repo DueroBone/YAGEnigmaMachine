@@ -53,23 +53,29 @@ ScoredMachine *testAllRotorPositions(Machine *machine, LETTER *text, size_t leng
                 setRotorPositions(machine, i, j, k);
                 LETTER output[length];
 
+                CompressedMachine *compressed = compressMachine(machine);
+                scoredMachines[index].compressedMachine = *compressed;
+                free(compressed);
+                compressionTime += getElapsedTime(&startTime);
+
                 getElapsedTime(&startTime); // Reset the timer
                 procLetters(machine, text, output, length);
                 proccessingTime += getElapsedTime(&startTime);
-
-                scoredMachines[index].compressedMachine = *compressMachine(machine);
-                compressionTime += getElapsedTime(&startTime);
 
                 scoredMachines[index].score = fitnessFunction->func(output, length);
                 scoringTime += getElapsedTime(&startTime);
 #else
                 int index = (i * 26 * 26) + (j * 26) + k;
                 setRotorPositions(machine, i, j, k);
+                CompressedMachine *compressed = compressMachine(machine);
+
                 LETTER output[length];
                 procLetters(machine, text, output, length);
+                double score = fitnessFunction->func(output, length);
 
-                scoredMachines[index].compressedMachine = *compressMachine(machine);
-                scoredMachines[index].score = fitnessFunction->func(output, length);
+                scoredMachines[index].compressedMachine = *compressed;
+                free(compressed);
+                scoredMachines[index].score = score;
 #endif
             }
         }
@@ -78,22 +84,8 @@ ScoredMachine *testAllRotorPositions(Machine *machine, LETTER *text, size_t leng
 #ifdef PROFILE_ENABLED
     getElapsedTime(&startTime); // Reset the timer
 #endif
-    ScoredMachine *bestMachines = getTopNMachines(scoredMachines, totalPositions, numToSave);
-    for (int i = 0; i < totalPositions; i++)
-    {
-        int found = 0;
-        for (int j = 0; j < numToSave; j++)
-        {
-            if (&scoredMachines[i].compressedMachine == &bestMachines[j].compressedMachine)
-            {
-                found = 1;
-                break;
-            }
-        }
 
-        if (!found)
-            free(&scoredMachines[i].compressedMachine);
-    }
+    ScoredMachine *bestMachines = getTopNMachines(scoredMachines, totalPositions, numToSave);
 
 #ifdef PROFILE_ENABLED
     double sortingTime = getElapsedTime(&startTime);

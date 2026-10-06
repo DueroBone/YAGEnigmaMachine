@@ -10,7 +10,7 @@
                 "-Wall",
                 "-Wextra",
                 "-Wpedantic",
-                "-O1",
+                "-O3",
                 "-g",
                 // "-fsanitize=address,undefined",
                 // "-fno-omit-frame-pointer",

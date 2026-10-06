@@ -4,7 +4,7 @@
 
 #include "rotor.h"
 #include "plugboard.h"
-
+// #define DUMB_COMPRESSOR
 typedef struct
 {
     Rotor rotors[3];
@@ -12,12 +12,23 @@ typedef struct
     Plugboard plugboard;
 } Machine;
 
+#ifdef DUMB_COMPRESSOR
 typedef struct
 {
     uint64_t rotorPositions; // 26*26*26 * 26*26*26    // Rotor positions and ring settings
     uint8_t rotorNumbers;    // 5*5*5 * 2              // Rotor numbers, reflector
     uint8_t plugboardWiring[26];
 } CompressedMachine;
+#else
+typedef struct
+{
+    uint8_t rotorPositions[3];
+    uint8_t ringSettings[3];
+    uint8_t rotorNumbers[3];
+    uint8_t reflectorNumber;
+    uint8_t plugboardWiring[26];
+} CompressedMachine;
+#endif
 
 /** Ring settings start at 1=a */
 void initMachine(Machine *machine, int rotorNumbers[3], int reflectorNumber, int ringSettings[3]);
@@ -34,5 +45,7 @@ LETTER *procLetters(Machine *machine, const LETTER *input, LETTER *output, size_
 
 CompressedMachine *compressMachine(Machine *machine);
 Machine *decompressMachine(CompressedMachine *compressed);
+
+char *machineToString(Machine *machine);
 
 #endif // MACHINE_H

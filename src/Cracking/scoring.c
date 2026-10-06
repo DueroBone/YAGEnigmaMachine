@@ -2,6 +2,12 @@
 #include "scoring.h"
 #include <stddef.h>
 
+union absoluteValue
+{
+    double d;
+    uint64_t u;
+};
+
 double ioc(LETTER *text, size_t length)
 {
     int counts[26] = {0};
@@ -29,5 +35,9 @@ double ioc(LETTER *text, size_t length)
     // N * (N - 1)
     long denominator = N * (N - 1);
 
-    return (double)numerator / denominator;
+    union absoluteValue abs;
+    abs.d = (double)numerator / denominator;
+    abs.d -= 0.066;
+    abs.u = (abs.u | 0x8000000000000000); // Set the sign bit to ensure a negative value
+    return abs.d;
 }

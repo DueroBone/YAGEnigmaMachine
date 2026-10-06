@@ -52,22 +52,6 @@ LETTER procSingle(Machine *machine, LETTER input)
     step(machine);
 
     LETTER letter = input;
-#ifdef PROC_AS_CHARS
-    char rot1Pos = machine->rotors[0].position + 'A';
-    char rot2Pos = machine->rotors[1].position + 'A';
-    char rot3Pos = machine->rotors[2].position + 'A';
-    LETTER process[9] = {};
-    process[0] = pb_proc(&machine->plugboard, letter);
-    process[1] = rot_procForward(&machine->rotors[2], process[0]);
-    process[2] = rot_procForward(&machine->rotors[1], process[1]);
-    process[3] = rot_procForward(&machine->rotors[0], process[2]);
-    process[4] = rot_procForward(&machine->reflector, process[3]);
-    process[5] = rot_procBackward(&machine->rotors[0], process[4]);
-    process[6] = rot_procBackward(&machine->rotors[1], process[5]);
-    process[7] = rot_procBackward(&machine->rotors[2], process[6]);
-    process[8] = pb_proc(&machine->plugboard, process[7]);
-    letter = process[8];
-#else
     letter = pb_proc(&machine->plugboard, input);
     letter = rot_procForward(&machine->rotors[2], letter);
     letter = rot_procForward(&machine->rotors[1], letter);
@@ -77,7 +61,6 @@ LETTER procSingle(Machine *machine, LETTER input)
     letter = rot_procBackward(&machine->rotors[1], letter);
     letter = rot_procBackward(&machine->rotors[2], letter);
     letter = pb_proc(&machine->plugboard, letter);
-#endif
 
     return letter;
 }
@@ -106,13 +89,10 @@ LETTER *convertStringToLetters(const char *input)
         {
             letters[i] -= 32; // Convert to uppercase
         }
-#ifdef PROC_AS_CHARS
-#else
         if (letters[i] >= 'A' && letters[i] <= 'Z')
         {
             letters[i] -= 'A';
         }
-#endif
     }
 
     return letters;
@@ -127,8 +107,6 @@ char *convertLettersToString(const LETTER *letters, size_t length)
     for (size_t i = 0; i < length; i++)
     {
         output[i] = letters[i];
-#ifdef PROC_AS_CHARS
-#else
         if (output[i] < 26)
         {
             output[i] += 'A';
@@ -137,7 +115,6 @@ char *convertLettersToString(const LETTER *letters, size_t length)
         {
             output[i] = '?'; // Unknown character
         }
-#endif
     }
     output[length] = '\0';
 
@@ -148,17 +125,8 @@ LETTER *procLetters(Machine *machine, const LETTER *input, LETTER *output, size_
 {
     for (size_t i = 0; i < length; i++)
     {
-#ifdef PROC_AS_CHARS
-        if (input[i] >= 'A' && input[i] <= 'Z')
         {
-            output[i] = procSingle(machine, input[i]);
-        }
-        else
-        {
-            output[i] = input[i];
-        }
-#else
-        {
+            // TODO: disable space check flag
             if (input[i] < 26)
             {
                 output[i] = procSingle(machine, input[i]);
@@ -168,7 +136,6 @@ LETTER *procLetters(Machine *machine, const LETTER *input, LETTER *output, size_
                 output[i] = input[i];
             }
         }
-#endif
     }
 
     return output;
@@ -195,6 +162,7 @@ char *procString(Machine *machine, const char *strInput)
     free(letters);
     return strOutput;
 }
+
 #ifdef DUMB_COMPRESSOR
 CompressedMachine *compressMachine(Machine *machine)
 {
@@ -276,7 +244,7 @@ Machine *decompressMachine(CompressedMachine *compressed)
 
     setRotorPositions(machine, rotorPositions[0], rotorPositions[1], rotorPositions[2]);
 
-    for (int i = 0; i < 20; i++)
+    for (int i = 0; i < 26; i++)
     {
         machine->plugboard.wiring[i] = compressed->plugboardWiring[i];
     }

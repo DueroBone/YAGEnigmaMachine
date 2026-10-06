@@ -23,9 +23,5 @@ void pb_removePlug(Plugboard *plugboard, char a)
 
 LETTER pb_proc(Plugboard *plugboard, LETTER input)
 {
-#ifdef PROC_AS_CHARS
-    return plugboard->wiring[input - 'A'] + 'A';
-#else
     return plugboard->wiring[input];
-#endif
 }

@@ -99,20 +99,12 @@ Rotor createRotor(int number, int ring)
 
 LETTER rot_procForward(Rotor *rotor, LETTER input)
 {
-#ifdef PROC_AS_CHARS
-    return rotor->wiring[rotor->position * 26 + (input - 'A')] + 'A';
-#else
     return rotor->wiring[rotor->position * 26 + input];
-#endif
 }
 
 LETTER rot_procBackward(Rotor *rotor, LETTER input)
 {
-#ifdef PROC_AS_CHARS
-    return rotor->backwardWiring[rotor->position * 26 + (input - 'A')] + 'A';
-#else
     return rotor->backwardWiring[rotor->position * 26 + input];
-#endif
 }
 
 void rot_step(Rotor *rotor)

@@ -90,7 +90,7 @@ int main(void)
     printf("Average elapsed time: %.4f ms\n", averageElapsed * 1000.0);
     // #endif
 
-    int numToSave = 5; // Number of top machines to save
+    int numToSave = 10; // Number of top machines to save
     ScoredMachine *scoredMachines = testAllRotorPositions(&machine, encrypted, strlen(input), &(FitnessFunction){.func = ioc}, numToSave);
     printf("\nTop %d machines:\n", numToSave);
     for (int i = 0; i < numToSave; i++)

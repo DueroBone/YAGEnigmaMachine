@@ -4,7 +4,7 @@
 
 #include "rotor.h"
 #include "plugboard.h"
-// #define DUMB_COMPRESSOR
+#define DUMB_COMPRESSOR
 typedef struct
 {
     Rotor rotors[3];

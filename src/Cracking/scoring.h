@@ -17,6 +17,9 @@ typedef struct
     double score;
 } ScoredMachine;
 
-double ioc(LETTER *text, size_t length);
+double scoreIoc(LETTER *text, size_t length);
+double scoreUnigrams(LETTER *text, size_t length);
+double scoreBigrams(LETTER *text, size_t length);
+double scoreTrigrams(LETTER *text, size_t length);
 
 #endif // SCORING_H

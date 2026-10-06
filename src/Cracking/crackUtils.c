@@ -30,16 +30,17 @@ ScoredMachine *getTopNMachines(ScoredMachine *scoredMachines, int totalMachines,
     return bestMachines;
 }
 
-ScoredMachine *testAllRotorPositions(Machine *machine, LETTER *text, size_t length, FitnessFunction *fitnessFunction, int numToSave)
+ScoredMachine *testAllRotorPositions(Machine *machine, LETTER *text, size_t length, FitnessFunction *fitnessFunction, int numToSave, double *profilingTimes[4])
 {
     const int totalPositions = 26 * 26 * 26; // Total rotor positions (26^3)
     ScoredMachine scoredMachines[totalPositions];
 
 #ifdef PROFILE_ENABLED
     struct timespec startTime = {0};
-    double proccessingTime = 0;
-    double compressionTime = 0;
-    double scoringTime = 0;
+    double *proccessingTime = profilingTimes[0];
+    double *compressionTime = profilingTimes[1];
+    double *scoringTime = profilingTimes[2];
+    double *sortingTime = profilingTimes[3];
 #endif
 
     for (int i = 0; i < 26; i++)
@@ -53,17 +54,17 @@ ScoredMachine *testAllRotorPositions(Machine *machine, LETTER *text, size_t leng
                 setRotorPositions(machine, i, j, k);
                 LETTER output[length];
 
+                getElapsedTime(&startTime); // Reset the timer
                 CompressedMachine *compressed = compressMachine(machine);
                 scoredMachines[index].compressedMachine = *compressed;
                 free(compressed);
-                compressionTime += getElapsedTime(&startTime);
+                *compressionTime += getElapsedTime(&startTime);
 
-                getElapsedTime(&startTime); // Reset the timer
                 procLetters(machine, text, output, length);
-                proccessingTime += getElapsedTime(&startTime);
+                *proccessingTime += getElapsedTime(&startTime);
 
                 scoredMachines[index].score = fitnessFunction->func(output, length);
-                scoringTime += getElapsedTime(&startTime);
+                *scoringTime += getElapsedTime(&startTime);
 #else
                 int index = (i * 26 * 26) + (j * 26) + k;
                 setRotorPositions(machine, i, j, k);
@@ -88,12 +89,54 @@ ScoredMachine *testAllRotorPositions(Machine *machine, LETTER *text, size_t leng
     ScoredMachine *bestMachines = getTopNMachines(scoredMachines, totalPositions, numToSave);
 
 #ifdef PROFILE_ENABLED
-    double sortingTime = getElapsedTime(&startTime);
-    printf("Processing time: %f seconds\n", proccessingTime);
-    printf("Compression time: %f seconds\n", compressionTime);
-    printf("Scoring time: %f seconds\n", scoringTime);
-    printf("Sorting time: %f seconds\n", sortingTime);
+    *sortingTime += getElapsedTime(&startTime);
 #endif
 
+    return bestMachines;
+}
+
+ScoredMachine *testAllRotorPositionsRings(Machine *machine, LETTER *text, size_t length, FitnessFunction *fitnessFunction,
+                                          int numToSave, int internalNumToSave, double *profilingTimes[5])
+{
+#ifdef PROFILE_ENABLED
+    double *proccessingTime = profilingTimes[0];
+    double *compressionTime = profilingTimes[1];
+    double *scoringTime = profilingTimes[2];
+    double *sortingTime = profilingTimes[3];
+    double *creatingRotorsTime = profilingTimes[4];
+    struct timespec startTime = {0};
+#endif
+
+    ScoredMachine scoredMachines[26 * 26 * 26 * internalNumToSave]; // Total rotor positions (26^3)
+
+    for (int i = 0; i < 26; i++)
+    {
+        for (int j = 0; j < 26; j++)
+        {
+            for (int k = 0; k < 26; k++)
+            {
+#ifdef PROFILE_ENABLED
+                getElapsedTime(&startTime); // Reset the timer
+#endif
+                replaceRotor(machine, 0, machine->rotors[0].rotorNumber, i);
+                replaceRotor(machine, 1, machine->rotors[1].rotorNumber, j);
+                replaceRotor(machine, 2, machine->rotors[2].rotorNumber, k);
+#ifdef PROFILE_ENABLED
+                *creatingRotorsTime += getElapsedTime(&startTime);
+#endif
+
+                testAllRotorPositions(machine, text, length, fitnessFunction, internalNumToSave, (double *[4]){proccessingTime, compressionTime, scoringTime, sortingTime});
+            }
+        }
+    }
+#ifdef PROFILE_ENABLED
+    getElapsedTime(&startTime); // Reset the timer
+#endif
+
+    ScoredMachine *bestMachines = getTopNMachines(scoredMachines, (26 * 26 * 26 * internalNumToSave), numToSave);
+
+#ifdef PROFILE_ENABLED
+    *sortingTime += getElapsedTime(&startTime);
+#endif
     return bestMachines;
 }

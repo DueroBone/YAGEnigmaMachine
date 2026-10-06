@@ -34,6 +34,7 @@ typedef struct
 void initMachine(Machine *machine, int rotorNumbers[3], int reflectorNumber, int ringSettings[3]);
 /** Start at 1=a */
 void setRotorPositions(Machine *machine, uint8_t posA, uint8_t posB, uint8_t posC);
+void replaceRotor(Machine *machine, int rotorIndex, int rotorNumber, int ringSetting);
 void addPlug(Machine *machine, char a, char b);
 void removePlug(Machine *machine, char a);
 

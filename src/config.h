@@ -5,12 +5,9 @@
 #include <stdint.h>
 
 #define LETTER uint8_t
+
 #define PROFILE_ENABLED // Comment to disable, uncomment when debugging
-
-// TODO: Disable spaces flag
-// TODO: move file loading out of private.h
-// TODO: 
-
-#define MAX_PLUGS 10
+#define ENABLE_SPACES
+#define IS_ENGLISH // Comment to be german
 
 #endif // CONFIG_H

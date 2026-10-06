@@ -26,6 +26,11 @@ void setRotorPositions(Machine *machine, uint8_t posA, uint8_t posB, uint8_t pos
     setPosition(&machine->rotors[2], posC);
 }
 
+void replaceRotor(Machine *machine, int rotorIndex, int rotorNumber, int ringSetting)
+{
+    machine->rotors[rotorIndex] = createRotor(rotorNumber, ringSetting);
+}
+
 void step(Machine *machine)
 {
     Rotor *left = &machine->rotors[0];
@@ -126,7 +131,7 @@ LETTER *procLetters(Machine *machine, const LETTER *input, LETTER *output, size_
     for (size_t i = 0; i < length; i++)
     {
         {
-            // TODO: disable space check flag
+#ifdef ENABLE_SPACES
             if (input[i] < 26)
             {
                 output[i] = procSingle(machine, input[i]);
@@ -135,6 +140,9 @@ LETTER *procLetters(Machine *machine, const LETTER *input, LETTER *output, size_
             {
                 output[i] = input[i];
             }
+#else
+            output[i] = procSingle(machine, input[i]);
+#endif
         }
     }
 
@@ -189,6 +197,7 @@ CompressedMachine *compressMachine(Machine *machine)
         compressed->rotorNumbers += machine->rotors[i].rotorNumber;
     }
     compressed->rotorNumbers <<= 1;
+    compressed->rotorNumbers |= (machine->reflector.rotorNumber - 'B');
 
     uint8_t plugsCompleted[26] = {0};
     for (int i = 0; i < 26; i++)

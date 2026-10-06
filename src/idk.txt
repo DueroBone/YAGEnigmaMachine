@@ -1,0 +1,23 @@
+
+Started...
+Testing avg speed...
+Average elapsed time: 0.0185 ms
+
+Top 10 machines:
+Score: 58337384243422926832802508855164361372582663367047567839106040976294446131581608446722332431590549998226341470447411082960895836726069790837356611235175939445285628874573422874968639913615530527817728.0000, {Rotors: 0 0 0, Reflector: B, Ring Settings:  0  0  0, Rotor Positions:  0  0  0},  Output: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+Score: 7249943484665652536355975814278207743835422819586222311735684552100308968275968.0000, {Rotors: 0 0 0, Reflector: B, Ring Settings:  0  0  0, Rotor Positions:  0  0  0},  Output: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+Score: 1579746320196089220016447591023092869588168024993247094051849298247680.0000, {Rotors: 1 2 3, Reflector: C, Ring Settings: 15  4  9, Rotor Positions: 10  4 19},  Output: ????????????????????????????????????????????
+Score: 342606481258593514577703840335075756758419657374580407795712.0000, {Rotors: 1 3 4, Reflector: C, Ring Settings: 21  6 25, Rotor Positions: 20  6 13},  Output: ????????????????????????????????????????????
+Score: 15839800103804824402926068484019465486336.0000, {Rotors: 1 2 1, Reflector: C, Ring Settings: 21 20 21, Rotor Positions:  6 21 12},  Output: ????????????????????????????????????????????
+Score: 710524667640503205888.0000, {Rotors: 1 3 0, Reflector: C, Ring Settings:  8 13  0, Rotor Positions: 13 14  0},  Output: ????????????????????????????????????????????
+Score: 0.0000, {Rotors: 0 1 0, Reflector: B, Ring Settings:  0 13  0, Rotor Positions:  6 14 12},  Output: DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD
+Score: 0.0000, {Rotors: 0 2 2, Reflector: B, Ring Settings:  0  1 10, Rotor Positions: 13 12 12},  Output: RXULHFVITXGJMADQPBADKZHNGCBAODUKGAGRSZIQVNAT
+Score: 0.0000, {Rotors: 0 1 4, Reflector: B, Ring Settings:  0 11 13, Rotor Positions: 19  9 13},  Output: PHQMRKVICYXFYLNHCDAIREGAVRXTARHHWDBIKLERGUYO
+Score: 0.0000, {Rotors: 0 0 1, Reflector: C, Ring Settings:  0  0 23, Rotor Positions: 21  0  0},  Output: BCWPAKDHKYCHDRXLYADHKNJFBTBCWPAKDHKYCHDRXLYA
+
+Profiling times (in seconds):
+Processing time: 1586.237468
+Compression time: 15689659.522119
+Scoring time: 137.976203
+Sorting time: 0.520394
+Creating rotors time: 0.033131

@@ -114,7 +114,7 @@ int main(void)
     // addPlug(&machine, 'C', 'D');
     // addPlug(&machine, 'E', 'F');
 
-    char *input = loadFile(TEXT_PATH, 300); // 4032450
+    char *input = loadFile(TEXT_PATH, 5000); // 4032450
     LETTER *letteredInput = convertStringToLetters(input);
     LETTER *encrypted = malloc(strlen(input) * sizeof(LETTER));
 
@@ -148,8 +148,8 @@ int main(void)
     double sortingTime = 0;
     double creatingRotorsTime = 0;
 
-    ScoredMachine *scoredMachines = testAllRotorPositions(&machine, encrypted, strlen(input), &(FitnessFunction){.func = scoreIoc}, numToSave,
-                                                          (double *[4]){&proccessingTime, &compressionTime, &scoringTime, &sortingTime});
+    ScoredMachine *scoredMachines = testAllRotorPositions(&machine, encrypted, strlen(input), &(FitnessFunction){.func = scoreTrigrams}, numToSave,
+                                                          (double *[5]){&proccessingTime, &compressionTime, &scoringTime, &sortingTime});
     printf("\nTop %d machines:\n", numToSave);
     for (int i = 0; i < numToSave; i++)
     {

@@ -107,33 +107,77 @@ ScoredMachine *testAllRotorPositionsRings(Machine *machine, LETTER *text, size_t
     struct timespec startTime = {0};
 #endif
 
-    ScoredMachine scoredMachines[26 * 26 * 26 * internalNumToSave]; // Total rotor positions (26^3)
+    const int totalPositions = 26 * 26 * 26 * internalNumToSave;
+    ScoredMachine *scoredMachines = malloc((size_t)totalPositions * sizeof(*scoredMachines));
+    if (scoredMachines == NULL)
+    {
+        fprintf(stderr, "Error: Could not allocate rotor position scores\n");
+        return NULL;
+    }
 
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
     for (int i = 0; i < 26; i++)
     {
         for (int j = 0; j < 26; j++)
         {
             for (int k = 0; k < 26; k++)
             {
+                Machine threadMachine = *machine;
+                double threadProcessingTime = 0;
+                double threadCompressionTime = 0;
+                double threadScoringTime = 0;
+                double threadSortingTime = 0;
+                double threadCreatingRotorsTime = 0;
+                struct timespec threadStartTime = {0};
+                replaceRotor(&threadMachine, 0, threadMachine.rotors[0].rotorNumber, i);
+                replaceRotor(&threadMachine, 1, threadMachine.rotors[1].rotorNumber, j);
+                replaceRotor(&threadMachine, 2, threadMachine.rotors[2].rotorNumber, k);
+
 #ifdef PROFILE_ENABLED
-                getElapsedTime(&startTime); // Reset the timer
-#endif
-                replaceRotor(machine, 0, machine->rotors[0].rotorNumber, i);
-                replaceRotor(machine, 1, machine->rotors[1].rotorNumber, j);
-                replaceRotor(machine, 2, machine->rotors[2].rotorNumber, k);
-#ifdef PROFILE_ENABLED
-                *creatingRotorsTime += getElapsedTime(&startTime);
+                getElapsedTime(&threadStartTime); // Reset the timer
+                threadCreatingRotorsTime = getElapsedTime(&threadStartTime);
 #endif
 
-                testAllRotorPositions(machine, text, length, fitnessFunction, internalNumToSave, (double *[4]){proccessingTime, compressionTime, scoringTime, sortingTime});
+                ScoredMachine *threadBestMachines = testAllRotorPositions(
+                    &threadMachine, text, length, fitnessFunction, internalNumToSave,
+#ifdef PROFILE_ENABLED
+                    (double *[4]){&threadProcessingTime, &threadCompressionTime, &threadScoringTime, &threadSortingTime}
+#else
+                    NULL
+#endif
+                );
+
+                int resultIndex = ((i * 26 + j) * 26 + k) * internalNumToSave;
+                for (int result = 0; result < internalNumToSave; result++)
+                {
+                    scoredMachines[resultIndex + result] = threadBestMachines[result];
+                }
+                free(threadBestMachines);
+
+#ifdef PROFILE_ENABLED
+#ifdef _OPENMP
+#pragma omp critical
+#endif
+                {
+                    *proccessingTime += threadProcessingTime;
+                    *compressionTime += threadCompressionTime;
+                    *scoringTime += threadScoringTime;
+                    *sortingTime += threadSortingTime;
+                    *creatingRotorsTime += threadCreatingRotorsTime;
+                }
+#endif
             }
         }
     }
+
 #ifdef PROFILE_ENABLED
     getElapsedTime(&startTime); // Reset the timer
 #endif
 
-    ScoredMachine *bestMachines = getTopNMachines(scoredMachines, (26 * 26 * 26 * internalNumToSave), numToSave);
+    ScoredMachine *bestMachines = getTopNMachines(scoredMachines, totalPositions, numToSave);
+    free(scoredMachines);
 
 #ifdef PROFILE_ENABLED
     *sortingTime += getElapsedTime(&startTime);

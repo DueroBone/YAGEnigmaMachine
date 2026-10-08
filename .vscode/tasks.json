@@ -12,6 +12,7 @@
                 "-Wpedantic",
                 "-O3",
                 "-g",
+                "-fopenmp",
                 // "-fsanitize=address,undefined",
                 // "-fno-omit-frame-pointer",
                 "${workspaceFolder}/src/*.c",

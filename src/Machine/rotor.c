@@ -29,29 +29,28 @@ Rotor createRotorAdv(uint8_t position, uint8_t turnover, uint8_t ring,  uint8_t 
         if (letter >= 26)
             letter -= 26;
 
-        rotor.wiring[i] = letter;
-        rotor.backwardWiring[letter] = i;
+        rotor.wiring[0][i] = letter;
+        rotor.backwardWiring[0][letter] = i;
     }
 
     // Precompute all positions -> outputs
     for (int rotorPosition = 1; rotorPosition < 26; rotorPosition++)
     {
-        int tableOffset = rotorPosition * 26;
         for (int input = 0; input < 26; input++)
         {
             int shiftedInput = input + rotorPosition;
             if (shiftedInput >= 26)
                 shiftedInput -= 26;
 
-            int forward = rotor.wiring[shiftedInput] - rotorPosition;
+            int forward = rotor.wiring[0][shiftedInput] - rotorPosition;
             if (forward < 0)
                 forward += 26;
-            rotor.wiring[tableOffset + input] = forward;
+            rotor.wiring[rotorPosition][input] = forward;
 
-            int backward = rotor.backwardWiring[shiftedInput] - rotorPosition;
+            int backward = rotor.backwardWiring[0][shiftedInput] - rotorPosition;
             if (backward < 0)
                 backward += 26;
-            rotor.backwardWiring[tableOffset + input] = backward;
+            rotor.backwardWiring[rotorPosition][input] = backward;
         }
     }
     return rotor;
@@ -99,12 +98,12 @@ Rotor createRotor(int number, int ring)
 
 LETTER rot_procForward(Rotor *rotor, LETTER input)
 {
-    return rotor->wiring[rotor->position * 26 + input];
+    return rotor->wiring[rotor->position][input];
 }
 
 LETTER rot_procBackward(Rotor *rotor, LETTER input)
 {
-    return rotor->backwardWiring[rotor->position * 26 + input];
+    return rotor->backwardWiring[rotor->position][input];
 }
 
 void rot_step(Rotor *rotor)

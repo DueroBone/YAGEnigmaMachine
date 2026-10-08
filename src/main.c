@@ -148,7 +148,7 @@ int main(void)
     double sortingTime = 0;
     double creatingRotorsTime = 0;
 
-    ScoredMachine *scoredMachines = testAllRotorPositions(&machine, encrypted, strlen(input), &(FitnessFunction){.func = scoreTrigrams}, numToSave,
+    ScoredMachine *scoredMachines = testAllRotorPositions(&machine, encrypted, strlen(input), &(FitnessFunction){.func = scoreIoc}, numToSave,
                                                           (double *[5]){&proccessingTime, &compressionTime, &scoringTime, &sortingTime});
     printf("\nTop %d machines:\n", numToSave);
     for (int i = 0; i < numToSave; i++)

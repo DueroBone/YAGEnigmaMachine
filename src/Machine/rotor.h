@@ -12,8 +12,9 @@ typedef struct
     uint8_t turnover;
     uint8_t ring;
     uint8_t rotorNumber;
-    LETTER wiring[26 * 26];
-    LETTER backwardWiring[26 * 26];
+    // position, letter
+    LETTER wiring[26][26];
+    LETTER backwardWiring[26][26];
 } Rotor;
 
 Rotor createRotor(int number, int ring);

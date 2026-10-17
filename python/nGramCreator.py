@@ -21,8 +21,7 @@ def c(letter):
     return ord(letter) - ord("A")
 
 
-n = int(argv[1])
-# n = 1
+n = int(argv[1]) if len(argv) > 1 else 1
 grams = generate_ngrams(text, n)
 newGrams = {}
 for key in grams.keys():
@@ -35,6 +34,25 @@ for i in range(26**n):
     if i not in newGrams.keys():
         newGrams[i] = 0
 
-sortedGrams = sorted(newGrams.items(), key=lambda x: x[0])
-# print(sortedGrams)
-print(str([item[1] for item in sortedGrams]).replace("[", "{").replace("]", "}"))
+length = len(text)
+
+
+def nested_values(values, dimensions):
+    if dimensions == 1:
+        return values
+
+    size = 26 ** (dimensions - 1)
+    return [
+        nested_values(values[i : i + size], dimensions - 1)
+        for i in range(0, len(values), size)
+    ]
+
+
+def c_initializer(values):
+    if isinstance(values[0], list):
+        return "{" + ", ".join(c_initializer(value) for value in values) + "}"
+    return "{" + ", ".join(str(value / length) for value in values) + "}"
+
+
+values = [newGrams[i] for i in range(26**n)]
+print(c_initializer(nested_values(values, n)))

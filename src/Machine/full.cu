@@ -1,5 +1,7 @@
 #include <stdint.h>
+#include <stdio.h>
 #include <cuda.h>
+#include <cuda_runtime_api.h>
 
 // ================- Feature flags -==================== //
 #define MODULUS_STEPPING
@@ -14,11 +16,18 @@
 // ================- Data Structures -==================== //
 typedef struct
 {
+    uint8_t rotorNumber;
+    uint8_t forward[26];
+    uint8_t backward[26];
+} RotorWiring;
+
+typedef struct
+{
+    uint8_t position;
     uint8_t turnover;
     uint8_t ring;
     uint8_t rotorNumber;
-    uint8_t wiring[26][26];
-    uint8_t backwardWiring[26][26];
+    const RotorWiring *wiring;
 } Rotor;
 
 typedef struct
@@ -42,16 +51,26 @@ typedef struct
 
 typedef struct
 {
-    uint8_t rotorNumbers[3];
-    uint8_t rotorPositions[3];
-    uint8_t ringSettings[3];
-    uint8_t reflectorNumber;
-    uint8_t plugboardWiring[26];
+    uint8_t rotorNumbers[3];     // 1-5
+    uint8_t rotorPositions[3];   // 0-25
+    uint8_t ringSettings[3];     // 0-25
+    uint8_t reflectorNumber;     // 'A' - 'C', Generally only B
+    uint8_t plugboardWiring[26]; // 0-25
 } CompressedMachine;
 
 typedef struct
 {
+    RotorWiring wirings[5][26]; // 5 rotors, 26 ring settings
+    Reflector reflectors[3];
+} Holders;
+
+__constant__ Holders constantHolders;
+
+typedef struct
+{
     uint16_t totalLetters;
+    uint8_t prevLetter;
+
 #ifdef USE_IOC
     uint8_t arrayIoc[26];
     float scoreIoc;
@@ -62,14 +81,12 @@ typedef struct
 #endif
 #ifdef USE_BIGRAMS
     uint8_t hasPrevLetter;
-    uint8_t prevLetter;
     uint16_t arrayBigrams[26][26];
     float scoreBigrams;
 #endif
 #ifdef USE_TRIGRAMS
     uint8_t lettersSaved;
     uint8_t prevPrevLetter;
-    uint8_t prevLetter;
     uint8_t arrayTrigrams[26][26][26];
     float scoreTrigrams;
 #endif
@@ -129,59 +146,63 @@ __host__ __device__ float finalizeScore(ScoringState *state)
 {
     float finalScore = 0.0f;
 #ifdef USE_IOC
-    float sum = 0.0f;
+    float iocSum = 0.0f;
     for (int i = 0; i < 26; i++)
     {
-        sum += state->arrayIoc[i] * state->arrayIoc[i];
+        iocSum += state->arrayIoc[i] * state->arrayIoc[i];
     }
-    state->scoreIoc = sum / state->totalLetters / state->totalLetters;
+    state->scoreIoc = iocSum / state->totalLetters / state->totalLetters;
     finalScore += state->scoreIoc;
 #endif
 #ifdef USE_UNIGRAMS
-    float sum = 0.0f;
+    float unigramSum = 0.0f;
     for (int i = 0; i < 26; i++)
     {
-        sum += state->arrayUnigrams[i] * UNIGRAM_EXPECTED[i];
+        unigramSum += state->arrayUnigrams[i] * UNIGRAM_EXPECTED[i];
     }
-    state->scoreUnigrams = sum / state->totalLetters;
+    state->scoreUnigrams = unigramSum / state->totalLetters;
     finalScore += state->scoreUnigrams;
 #endif
 #ifdef USE_BIGRAMS
-    float sum = 0.0f;
+    float bigramSum = 0.0f;
     for (int i = 0; i < 26; i++)
     {
         for (int j = 0; j < 26; j++)
         {
-            sum += state->arrayBigrams[i][j] * BIGRAM_EXPECTED[i][j];
+            bigramSum += state->arrayBigrams[i][j] * BIGRAM_EXPECTED[i][j];
         }
     }
-    state->scoreBigrams = sum / state->totalLetters;
+    state->scoreBigrams = bigramSum / state->totalLetters;
     finalScore += state->scoreBigrams;
 #endif
 #ifdef USE_TRIGRAMS
-    float sum = 0.0f;
+    float trigramSum = 0.0f;
     for (int i = 0; i < 26; i++)
     {
         for (int j = 0; j < 26; j++)
         {
             for (int k = 0; k < 26; k++)
             {
-                sum += state->arrayTrigrams[i][j][k] * TRIGRAM_EXPECTED[i][j][k];
+                trigramSum += state->arrayTrigrams[i][j][k] * TRIGRAM_EXPECTED[i][j][k];
             }
         }
     }
-    state->scoreTrigrams = sum / state->totalLetters;
+    state->scoreTrigrams = trigramSum / state->totalLetters;
     finalScore += state->scoreTrigrams;
 #endif
     return finalScore;
 }
 
-// ================- Create Rotor Functions -==================== //
-__host__ void createRotorAdv(Rotor *dest, uint8_t turnover, uint8_t ring, uint8_t rotorNumber, const char *wiringStr)
+// ================- Rotor Functions -==================== //
+__host__ __device__ void createRotorAdv(Rotor *dest, Holders *holder, uint8_t turnover, uint8_t ring,
+                                        uint8_t rotorNumber, const char *wiringStr)
 {
+    RotorWiring *wiring = &holder->wirings[rotorNumber - 1][ring];
+    dest->wiring = wiring;
     dest->turnover = turnover;
     dest->ring = ring;
     dest->rotorNumber = rotorNumber;
+    wiring->rotorNumber = rotorNumber;
 
     // Build initial wirings in both directions
     for (int i = 0; i < 26; i++)
@@ -194,48 +215,12 @@ __host__ void createRotorAdv(Rotor *dest, uint8_t turnover, uint8_t ring, uint8_
         if (letter >= 26)
             letter -= 26;
 
-        dest->wiring[0][i] = letter;
-        dest->backwardWiring[0][letter] = i;
-    }
-
-    if (rotorNumber < 'A')
-    {
-        // Precompute all positions -> outputs
-        for (int rotorPosition = 1; rotorPosition < 26; rotorPosition++)
-        {
-            for (int input = 0; input < 26; input++)
-            {
-                int shiftedInput = input + rotorPosition;
-                if (shiftedInput >= 26)
-                    shiftedInput -= 26;
-
-                int forward = dest->wiring[0][shiftedInput] - rotorPosition;
-                if (forward < 0)
-                    forward += 26;
-                dest->wiring[rotorPosition][input] = forward;
-
-                int backward = dest->backwardWiring[0][shiftedInput] - rotorPosition;
-                if (backward < 0)
-                    backward += 26;
-                dest->backwardWiring[rotorPosition][input] = backward;
-            }
-        }
-    }
-    else
-    {
-        // if reflector, just copy the first row to all other rows
-        for (int i = 1; i < 26; i++)
-        {
-            for (int j = 0; j < 26; j++)
-            {
-                dest->wiring[i][j] = dest->wiring[0][j];
-                dest->backwardWiring[i][j] = dest->backwardWiring[0][j];
-            }
-        }
+        wiring->forward[i] = letter;
+        wiring->backward[letter] = i;
     }
 }
 
-__host__ void createRotor(Rotor *dest, int number, int ring)
+__host__ __device__ void createRotor(Rotor *dest, Holders *holder, int number, int ring)
 {
     /*
     https://www.cryptomuseum.com/crypto/enigma/wiring.htm
@@ -253,21 +238,21 @@ __host__ void createRotor(Rotor *dest, int number, int ring)
     {
     // Rotors
     case 1:
-        return createRotorAdv(dest, c('Q'), ring, 1, "EKMFLGDQVZNTOWYHXUSPAIBRCJ");
+        return createRotorAdv(dest, holder, c('Q'), ring, 1, "EKMFLGDQVZNTOWYHXUSPAIBRCJ");
     case 2:
-        return createRotorAdv(dest, c('E'), ring, 2, "AJDKSIRUXBLHWTMCQGZNPYFVOE");
+        return createRotorAdv(dest, holder, c('E'), ring, 2, "AJDKSIRUXBLHWTMCQGZNPYFVOE");
     case 3:
-        return createRotorAdv(dest, c('V'), ring, 3, "BDFHJLCPRTXVZNYEIWGAKMUSQO");
+        return createRotorAdv(dest, holder, c('V'), ring, 3, "BDFHJLCPRTXVZNYEIWGAKMUSQO");
     case 4:
-        return createRotorAdv(dest, c('J'), ring, 4, "ESOVPZJAYQUIRHXLNFTGKDCMWB");
+        return createRotorAdv(dest, holder, c('J'), ring, 4, "ESOVPZJAYQUIRHXLNFTGKDCMWB");
     case 5:
-        return createRotorAdv(dest, c('Z'), ring, 5, "VZBRGITYUPSDNHLXAWMJQOFECK");
+        return createRotorAdv(dest, holder, c('Z'), ring, 5, "VZBRGITYUPSDNHLXAWMJQOFECK");
     default:
         return;
     }
 }
 
-__host__ void createReflectorAdv(Reflector *dest, char type, const char *wiringStr)
+__host__ __device__ void createReflectorAdv(Reflector *dest, char type, const char *wiringStr)
 {
     dest->reflectorNumber = type;
     for (int i = 0; i < 26; i++)
@@ -276,7 +261,7 @@ __host__ void createReflectorAdv(Reflector *dest, char type, const char *wiringS
     }
 }
 
-__host__ void createReflector(Reflector *dest, char type)
+__host__ __device__ void createReflector(Reflector *dest, char type)
 {
     switch (type)
     {
@@ -288,6 +273,18 @@ __host__ void createReflector(Reflector *dest, char type)
     case 'C':
         return createReflectorAdv(dest, 'C', "FVPJIAOYEDRZXWGCTKUQSBNMHL");
     }
+}
+
+__host__ __device__ uint8_t _rotorForward(Rotor *rotor, uint8_t letter)
+{
+    uint8_t input = (letter + rotor->position - rotor->ring + 26) % 26;
+    return (rotor->wiring->forward[input] - rotor->position + rotor->ring + 26) % 26;
+}
+
+__host__ __device__ uint8_t _rotorBackward(Rotor *rotor, uint8_t letter)
+{
+    uint8_t input = (letter - rotor->position + rotor->ring + 26) % 26;
+    return (rotor->wiring->backward[input] + rotor->position - rotor->ring + 26) % 26;
 }
 
 // ================- Machine Functions -==================== //
@@ -306,15 +303,36 @@ __host__ __device__ void compressMachine(const Machine *machine, CompressedMachi
     }
 }
 
-__host__ __device__ void decompressMachine(const CompressedMachine *compressed, Machine *machine,
-                                           Rotor *rotors, Reflector *reflector, Plugboard *plugboard)
+__host__ __device__ void rawDecompressMachine(const CompressedMachine *compressed, Machine *machine,
+                                              Rotor *rotors, Reflector *reflector, Plugboard *plugboard,
+                                              Holders *holder)
 {
     for (int i = 0; i < 3; i++)
     {
-        createRotor(rotors + i, compressed->rotorNumbers[i], compressed->ringSettings[i]);
+        createRotor(rotors + i, holder, compressed->rotorNumbers[i], compressed->ringSettings[i]);
         machine->rotors[i] = rotors + i;
         machine->rotorPositions[i] = compressed->rotorPositions[i];
     }
+    machine->reflector = &holder->reflectors[compressed->reflectorNumber - 'A'];
+    for (int i = 0; i < 26; i++)
+    {
+        plugboard->wiring[i] = compressed->plugboardWiring[i];
+    }
+    machine->plugboard = plugboard;
+}
+
+__host__ __device__ void decompressMachine(const CompressedMachine *compressed, Machine *machine,
+                                           Rotor *rotors, Reflector *reflector, Plugboard *plugboard,
+                                           Holders *holder)
+{
+    for (int i = 0; i < 3; i++)
+    {
+        createRotor(rotors + i, holder, compressed->rotorNumbers[i], compressed->ringSettings[i]);
+        rotors[i].position = compressed->rotorPositions[i];
+        machine->rotors[i] = rotors + i;
+        machine->rotorPositions[i] = compressed->rotorPositions[i];
+    }
+
     createReflector(reflector, compressed->reflectorNumber);
     machine->reflector = reflector;
     for (int i = 0; i < 26; i++)
@@ -357,6 +375,10 @@ __host__ __device__ void step(Machine *machine)
 
     *rightPos = (*rightPos == 25) ? 0 : *rightPos + 1;
 #endif
+
+    leftRot->position = *leftPos;
+    middleRot->position = *middlePos;
+    rightRot->position = *rightPos;
 }
 
 __host__ __device__ uint8_t proccessLetter(Machine *machine, uint8_t letter)
@@ -367,18 +389,15 @@ __host__ __device__ uint8_t proccessLetter(Machine *machine, uint8_t letter)
     Rotor *leftRot = machine->rotors[0];
     Rotor *middleRot = machine->rotors[1];
     Rotor *rightRot = machine->rotors[2];
-    uint8_t leftPos = machine->rotorPositions[0];
-    uint8_t middlePos = machine->rotorPositions[1];
-    uint8_t rightPos = machine->rotorPositions[2];
 
     letter = machine->plugboard->wiring[letter];
-    letter = rightRot->wiring[rightPos][letter];
-    letter = middleRot->wiring[middlePos][letter];
-    letter = leftRot->wiring[leftPos][letter];
+    letter = _rotorForward(rightRot, letter);
+    letter = _rotorForward(middleRot, letter);
+    letter = _rotorForward(leftRot, letter);
     letter = machine->reflector->wiring[letter];
-    letter = leftRot->backwardWiring[leftPos][letter];
-    letter = middleRot->backwardWiring[middlePos][letter];
-    letter = rightRot->backwardWiring[rightPos][letter];
+    letter = _rotorBackward(leftRot, letter);
+    letter = _rotorBackward(middleRot, letter);
+    letter = _rotorBackward(rightRot, letter);
     letter = machine->plugboard->wiring[letter];
     return letter;
 }
@@ -395,10 +414,31 @@ __host__ __device__ float proccessMessage(Machine *machine, const uint8_t *input
     return finalizeScore(&scoreState);
 }
 
-__host__ void createAllRotors(Rotor *rotors, int ring)
+__host__ void createAllWirings(Holders *holder)
+{
+    Rotor unusedRotor = {};
+    for (int rotorNumber = 1; rotorNumber <= 5; rotorNumber++)
+    {
+        for (int ring = 0; ring < 26; ring++)
+            createRotor(&unusedRotor, holder, rotorNumber, ring);
+    }
+
+    createReflector(&holder->reflectors[0], 'A');
+    createReflector(&holder->reflectors[1], 'B');
+    createReflector(&holder->reflectors[2], 'C');
+}
+
+__host__ void uploadHolders(const Holders *holder)
+{
+    cudaError_t result = cudaMemcpyToSymbol(constantHolders, holder, sizeof(Holders));
+    if (result != cudaSuccess)
+        fprintf(stderr, "Failed to upload holders to constant memory: %s\n", cudaGetErrorString(result));
+}
+
+__host__ void createAllRotors(Rotor *rotors, Holders *holder, int ring)
 {
     for (int i = 1; i <= 5; i++)
-    {
-        createRotor(rotors + (i - 1), i, 0);
-    }
+        createRotor(rotors + (i - 1), holder, i, ring);
 }
+
+__device__ void threadTask() {}

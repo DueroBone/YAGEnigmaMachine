@@ -1,7 +1,5 @@
 #include <stdint.h>
-#include <stdio.h>
 #include <cuda.h>
-#include <cuda_runtime_api.h>
 
 // ================- Feature flags -==================== //
 #define MODULUS_STEPPING
@@ -11,23 +9,17 @@
 #define USE_BIGRAMS
 #define USE_TRIGRAMS
 
-#define NULL
+#define NULL (void *)0
 
 // ================- Data Structures -==================== //
-typedef struct
-{
-    uint8_t rotorNumber;
-    uint8_t forward[26];
-    uint8_t backward[26];
-} RotorWiring;
-
 typedef struct
 {
     uint8_t position;
     uint8_t turnover;
     uint8_t ring;
     uint8_t rotorNumber;
-    const RotorWiring *wiring;
+    uint8_t forward[26];
+    uint8_t backward[26];
 } Rotor;
 
 typedef struct
@@ -57,14 +49,6 @@ typedef struct
     uint8_t reflectorNumber;     // 'A' - 'C', Generally only B
     uint8_t plugboardWiring[26]; // 0-25
 } CompressedMachine;
-
-typedef struct
-{
-    RotorWiring wirings[5][26]; // 5 rotors, 26 ring settings
-    Reflector reflectors[3];
-} Holders;
-
-__constant__ Holders constantHolders;
 
 typedef struct
 {
@@ -194,15 +178,12 @@ __host__ __device__ float finalizeScore(ScoringState *state)
 }
 
 // ================- Rotor Functions -==================== //
-__host__ __device__ void createRotorAdv(Rotor *dest, Holders *holder, uint8_t turnover, uint8_t ring,
+__host__ __device__ void createRotorAdv(Rotor *dest, uint8_t turnover, uint8_t ring,
                                         uint8_t rotorNumber, const char *wiringStr)
 {
-    RotorWiring *wiring = &holder->wirings[rotorNumber - 1][ring];
-    dest->wiring = wiring;
     dest->turnover = turnover;
     dest->ring = ring;
     dest->rotorNumber = rotorNumber;
-    wiring->rotorNumber = rotorNumber;
 
     // Build initial wirings in both directions
     for (int i = 0; i < 26; i++)
@@ -215,12 +196,12 @@ __host__ __device__ void createRotorAdv(Rotor *dest, Holders *holder, uint8_t tu
         if (letter >= 26)
             letter -= 26;
 
-        wiring->forward[i] = letter;
-        wiring->backward[letter] = i;
+        dest->forward[i] = letter;
+        dest->backward[letter] = i;
     }
 }
 
-__host__ __device__ void createRotor(Rotor *dest, Holders *holder, int number, int ring)
+__host__ __device__ void createRotor(Rotor *dest, int number, int ring)
 {
     /*
     https://www.cryptomuseum.com/crypto/enigma/wiring.htm
@@ -238,15 +219,15 @@ __host__ __device__ void createRotor(Rotor *dest, Holders *holder, int number, i
     {
     // Rotors
     case 1:
-        return createRotorAdv(dest, holder, c('Q'), ring, 1, "EKMFLGDQVZNTOWYHXUSPAIBRCJ");
+        return createRotorAdv(dest, c('Q'), ring, 1, "EKMFLGDQVZNTOWYHXUSPAIBRCJ");
     case 2:
-        return createRotorAdv(dest, holder, c('E'), ring, 2, "AJDKSIRUXBLHWTMCQGZNPYFVOE");
+        return createRotorAdv(dest, c('E'), ring, 2, "AJDKSIRUXBLHWTMCQGZNPYFVOE");
     case 3:
-        return createRotorAdv(dest, holder, c('V'), ring, 3, "BDFHJLCPRTXVZNYEIWGAKMUSQO");
+        return createRotorAdv(dest, c('V'), ring, 3, "BDFHJLCPRTXVZNYEIWGAKMUSQO");
     case 4:
-        return createRotorAdv(dest, holder, c('J'), ring, 4, "ESOVPZJAYQUIRHXLNFTGKDCMWB");
+        return createRotorAdv(dest, c('J'), ring, 4, "ESOVPZJAYQUIRHXLNFTGKDCMWB");
     case 5:
-        return createRotorAdv(dest, holder, c('Z'), ring, 5, "VZBRGITYUPSDNHLXAWMJQOFECK");
+        return createRotorAdv(dest, c('Z'), ring, 5, "VZBRGITYUPSDNHLXAWMJQOFECK");
     default:
         return;
     }
@@ -278,13 +259,13 @@ __host__ __device__ void createReflector(Reflector *dest, char type)
 __host__ __device__ uint8_t _rotorForward(Rotor *rotor, uint8_t letter)
 {
     uint8_t input = (letter + rotor->position - rotor->ring + 26) % 26;
-    return (rotor->wiring->forward[input] - rotor->position + rotor->ring + 26) % 26;
+    return (rotor->forward[input] - rotor->position + rotor->ring + 26) % 26;
 }
 
 __host__ __device__ uint8_t _rotorBackward(Rotor *rotor, uint8_t letter)
 {
     uint8_t input = (letter - rotor->position + rotor->ring + 26) % 26;
-    return (rotor->wiring->backward[input] + rotor->position - rotor->ring + 26) % 26;
+    return (rotor->backward[input] + rotor->position - rotor->ring + 26) % 26;
 }
 
 // ================- Machine Functions -==================== //
@@ -304,16 +285,16 @@ __host__ __device__ void compressMachine(const Machine *machine, CompressedMachi
 }
 
 __host__ __device__ void rawDecompressMachine(const CompressedMachine *compressed, Machine *machine,
-                                              Rotor *rotors, Reflector *reflector, Plugboard *plugboard,
-                                              Holders *holder)
+                                              Rotor *rotors, Reflector *reflector, Plugboard *plugboard)
 {
     for (int i = 0; i < 3; i++)
     {
-        createRotor(rotors + i, holder, compressed->rotorNumbers[i], compressed->ringSettings[i]);
+        createRotor(rotors + i, compressed->rotorNumbers[i], compressed->ringSettings[i]);
         machine->rotors[i] = rotors + i;
         machine->rotorPositions[i] = compressed->rotorPositions[i];
     }
-    machine->reflector = &holder->reflectors[compressed->reflectorNumber - 'A'];
+    createReflector(reflector, compressed->reflectorNumber);
+    machine->reflector = reflector;
     for (int i = 0; i < 26; i++)
     {
         plugboard->wiring[i] = compressed->plugboardWiring[i];
@@ -322,12 +303,11 @@ __host__ __device__ void rawDecompressMachine(const CompressedMachine *compresse
 }
 
 __host__ __device__ void decompressMachine(const CompressedMachine *compressed, Machine *machine,
-                                           Rotor *rotors, Reflector *reflector, Plugboard *plugboard,
-                                           Holders *holder)
+                                           Rotor *rotors, Reflector *reflector, Plugboard *plugboard)
 {
     for (int i = 0; i < 3; i++)
     {
-        createRotor(rotors + i, holder, compressed->rotorNumbers[i], compressed->ringSettings[i]);
+        createRotor(rotors + i, compressed->rotorNumbers[i], compressed->ringSettings[i]);
         rotors[i].position = compressed->rotorPositions[i];
         machine->rotors[i] = rotors + i;
         machine->rotorPositions[i] = compressed->rotorPositions[i];
@@ -414,31 +394,8 @@ __host__ __device__ float proccessMessage(Machine *machine, const uint8_t *input
     return finalizeScore(&scoreState);
 }
 
-__host__ void createAllWirings(Holders *holder)
+
+__device__ void threadTask()
 {
-    Rotor unusedRotor = {};
-    for (int rotorNumber = 1; rotorNumber <= 5; rotorNumber++)
-    {
-        for (int ring = 0; ring < 26; ring++)
-            createRotor(&unusedRotor, holder, rotorNumber, ring);
-    }
 
-    createReflector(&holder->reflectors[0], 'A');
-    createReflector(&holder->reflectors[1], 'B');
-    createReflector(&holder->reflectors[2], 'C');
 }
-
-__host__ void uploadHolders(const Holders *holder)
-{
-    cudaError_t result = cudaMemcpyToSymbol(constantHolders, holder, sizeof(Holders));
-    if (result != cudaSuccess)
-        fprintf(stderr, "Failed to upload holders to constant memory: %s\n", cudaGetErrorString(result));
-}
-
-__host__ void createAllRotors(Rotor *rotors, Holders *holder, int ring)
-{
-    for (int i = 1; i <= 5; i++)
-        createRotor(rotors + (i - 1), holder, i, ring);
-}
-
-__device__ void threadTask() {}

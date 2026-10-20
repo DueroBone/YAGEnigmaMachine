@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug C + CUDA",
+            "type": "cuda-gdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/enigma",
+            "cwd": "${workspaceFolder}",
+            "args": [],
+            "preLaunchTask": "Build CUDA Project",
+            "stopAtEntry": false
+        }
+    ]
+}

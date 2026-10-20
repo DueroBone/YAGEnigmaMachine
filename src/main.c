@@ -4,12 +4,14 @@
 #include <time.h>
 
 #include "config.h"
-#include "Machine/machine.h"
+// #include "Machine/machine.h"
 #include "private.h"
 #include "timer.h"
-#include "Cracking/crackUtils.h"
-#include "Cracking/scoring.h"
+// #include "Cracking/crackUtils.h"
+// #include "Cracking/scoring.h"
+#include "Machine/full.h"
 
+/*
 int test()
 {
 
@@ -49,6 +51,7 @@ int test()
     free(output2);
     return 0;
 }
+    */
 
 char *loadFile(const char *filename, size_t length)
 {
@@ -80,12 +83,6 @@ char *loadFile(const char *filename, size_t length)
         { // Convert to uppercase
             buffer[actualLength++] = (char)(c - 32);
         }
-#ifdef ENABLE_SPACES
-        else if (c == ' ')
-        {
-            buffer[actualLength++] = ' '; // Keep spaces
-        }
-#endif
     }
     if (actualLength < length)
     {
@@ -97,6 +94,20 @@ char *loadFile(const char *filename, size_t length)
     return buffer;
 }
 
+int main(void)
+{
+    char *input = loadFile(TEXT_PATH, 5000);
+    for (size_t i = 0; i < 5000; i++)
+        input[i] = ((input[i] >= 'a' && input[i] <= 'z') ? input[i] - 32 : input[i]) - 'A'; // Convert to uppercase and then to 0-25 range
+    char *output = malloc(5000);
+
+    encrypt((int[3]){1, 2, 3}, 'B', (int[3]){0, 0, 0}, (int[3]){0, 0, 0}, (const uint8_t *)input, 5000, (uint8_t *)output);
+    runTest(output, 5000);
+
+    return 0;
+}
+
+/*
 int main(void)
 {
     if (test())
@@ -184,3 +195,4 @@ int main(void)
 
     return 0;
 }
+*/
